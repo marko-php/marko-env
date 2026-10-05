@@ -12,12 +12,18 @@ class EnvLoader
      * The .env file is optional - if it doesn't exist, the application
      * should work with sensible defaults defined in config files.
      *
+     * Real environment variables are first mirrored into $_ENV (without
+     * overwriting existing entries), so config files reading $_ENV work even
+     * when PHP's variables_order lacks "E" and no .env file exists.
+     *
      * System environment variables take precedence over .env values,
      * allowing production deployments to override via system env vars.
      */
     public function load(
         string $path,
     ): void {
+        $this->mirrorRealEnvironment();
+
         $file = $path . '/.env';
 
         if (!is_file($file)) {
@@ -32,6 +38,16 @@ class EnvLoader
 
         foreach ($lines as $line) {
             $this->processLine($line);
+        }
+    }
+
+    /**
+     * Copy real environment variables into $_ENV without overwriting.
+     */
+    private function mirrorRealEnvironment(): void
+    {
+        foreach (getenv() as $name => $value) {
+            $_ENV[$name] ??= $value;
         }
     }
 

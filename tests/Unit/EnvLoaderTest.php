@@ -18,7 +18,7 @@ afterEach(function () {
     $_ENV = $this->originalEnv;
 
     // Clean up any env vars we set via putenv
-    foreach (['TEST_VAR', 'QUOTED_VAR', 'SINGLE_QUOTED', 'SPACED_VAR', 'EMPTY_VAR', 'EXISTING_VAR', 'APP_ENV', 'DB_HOST', 'DB_PORT'] as $var) {
+    foreach (['TEST_VAR', 'QUOTED_VAR', 'SINGLE_QUOTED', 'SPACED_VAR', 'EMPTY_VAR', 'EXISTING_VAR', 'APP_ENV', 'DB_HOST', 'DB_PORT', 'REAL_ENV_VAR'] as $var) {
         putenv($var);
     }
 
@@ -132,12 +132,38 @@ it('does not overwrite existing getenv variables', function () {
     expect(getenv('EXISTING_VAR'))->toBe('original');
 });
 
-it('does nothing when .env file does not exist', function () {
+it('mirrors real environment variables into $_ENV when no .env file exists', function () {
+    // Simulate variables_order without E: $_ENV is empty, the value only exists in the real environment
+    $_ENV = [];
+    putenv('REAL_ENV_VAR=from-environment');
+
     $loader = new EnvLoader();
     $loader->load($this->tempDir); // No .env file exists
 
-    // Should not throw, should not modify $_ENV
-    expect(true)->toBeTrue();
+    expect($_ENV)->toHaveKey('REAL_ENV_VAR')
+        ->and($_ENV['REAL_ENV_VAR'])->toBe('from-environment');
+});
+
+it('does not overwrite values already present in $_ENV when mirroring', function () {
+    $_ENV['REAL_ENV_VAR'] = 'explicit';
+    putenv('REAL_ENV_VAR=from-environment');
+
+    $loader = new EnvLoader();
+    $loader->load($this->tempDir);
+
+    expect($_ENV['REAL_ENV_VAR'])->toBe('explicit');
+});
+
+it('keeps a real environment variable over the same key in .env', function () {
+    $_ENV = [];
+    putenv('REAL_ENV_VAR=from-environment');
+    file_put_contents($this->tempDir . '/.env', 'REAL_ENV_VAR=from-dotenv');
+
+    $loader = new EnvLoader();
+    $loader->load($this->tempDir);
+
+    expect($_ENV['REAL_ENV_VAR'])->toBe('from-environment')
+        ->and(getenv('REAL_ENV_VAR'))->toBe('from-environment');
 });
 
 it('handles multiple variables', function () {
