@@ -17,7 +17,7 @@ $envLoader = new EnvLoader();
 $envLoader->load(__DIR__);
 ```
 
-The global `env()` helper is deprecated and will be removed in Marko 1.0; read values with `Marko\Config\Env` instead.
+The global `env()` helper was removed in Marko 0.9.0; read values with `Marko\Config\Env` instead.
 
 ## Documentation
 
