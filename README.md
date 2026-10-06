@@ -1,6 +1,6 @@
 # marko/env
 
-Environment variable loading — reads `.env` files and provides the `env()` helper with automatic type coercion.
+Environment variable loading — reads a `.env` file into `$_ENV` at boot so config files can read it with `Marko\Config\Env`.
 
 ## Installation
 
@@ -15,9 +15,9 @@ use Marko\Env\EnvLoader;
 
 $envLoader = new EnvLoader();
 $envLoader->load(__DIR__);
-
-$debug = env('APP_DEBUG'); // 'true' -> true, 'false' -> false
 ```
+
+The global `env()` helper is deprecated and will be removed in Marko 1.0; read values with `Marko\Config\Env` instead.
 
 ## Documentation
 

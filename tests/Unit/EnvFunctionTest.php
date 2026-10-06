@@ -5,9 +5,19 @@ declare(strict_types=1);
 beforeEach(function () {
     // Store original env state
     $this->originalEnv = $_ENV;
+
+    // env() is deprecated: capture its E_USER_DEPRECATED notices instead of reporting them
+    $this->deprecations = [];
+    set_error_handler(function (int $level, string $message): bool {
+        $this->deprecations[] = $message;
+
+        return true;
+    }, E_USER_DEPRECATED);
 });
 
 afterEach(function () {
+    restore_error_handler();
+
     // Restore original env state
     $_ENV = $this->originalEnv;
 
@@ -125,4 +135,86 @@ it('does not use default when value coerces to empty string', function () {
 
     // 'empty' coerces to '', which is still a set value
     expect(env('EMPTY_VAR', 'default'))->toBe('');
+});
+
+describe('deprecation', function () {
+    it('emits E_USER_DEPRECATED when called', function () {
+        $levels = [];
+        set_error_handler(function (int $level) use (&$levels): bool {
+            $levels[] = $level;
+
+            return true;
+        });
+
+        try {
+            env('TEST_VAR');
+        } finally {
+            restore_error_handler();
+        }
+
+        expect($levels)->toBe([E_USER_DEPRECATED]);
+    });
+
+    it('emits the deprecation on every call', function () {
+        env('TEST_VAR');
+        env('TEST_VAR');
+
+        expect($this->deprecations)->toHaveCount(2);
+    });
+
+    it('names the variable and Marko\Config\Env in the deprecation message', function () {
+        env('APP_NAME', 'Marko');
+
+        expect($this->deprecations[0])
+            ->toContain("env('APP_NAME')")
+            ->toContain('Marko\Config\Env');
+    });
+
+    it('says env() will be removed in 1.0', function () {
+        env('TEST_VAR');
+
+        expect($this->deprecations[0])->toContain('will be removed in Marko 1.0');
+    });
+
+    it('suggests Env::bool for a boolean default', function () {
+        env('APP_DEBUG', false);
+
+        expect($this->deprecations[0])->toContain("Env::bool('APP_DEBUG', false)");
+    });
+
+    it('suggests Env::int for an integer default', function () {
+        env('DB_PORT', 3306);
+
+        expect($this->deprecations[0])->toContain("Env::int('DB_PORT', 3306)");
+    });
+
+    it('suggests Env::float for a float default', function () {
+        env('SAMPLE_RATE', 0.5);
+
+        expect($this->deprecations[0])->toContain("Env::float('SAMPLE_RATE', 0.5)");
+    });
+
+    it('suggests Env::string for a string default', function () {
+        env('DB_HOST', 'localhost');
+
+        expect($this->deprecations[0])->toContain("Env::string('DB_HOST', 'localhost')");
+    });
+
+    it('suggests Env::list for an array default', function () {
+        env('TRUSTED_HOSTS', ['localhost']);
+
+        expect($this->deprecations[0])->toContain("Env::list('TRUSTED_HOSTS', [...])");
+    });
+
+    it('suggests Env::nullableString when no default is given', function () {
+        env('API_KEY');
+
+        expect($this->deprecations[0])->toContain("Env::nullableString('API_KEY')");
+    });
+
+    it('returns the same value as before the deprecation', function () {
+        $_ENV['BOOL_VAR'] = 'off';
+
+        expect(env('BOOL_VAR', true))->toBe('off');
+    });
 });
